@@ -1,0 +1,59 @@
+version: '3.7'
+
+services:
+  # MariaDB service for Zabbix
+  mariadb:
+    image: mariadb:latest
+    container_name: mariadb-zabbix
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password         # Change root password
+      MYSQL_DATABASE: zabbix                     # Database name
+      MYSQL_USER: zabbix_user                    # Zabbix user
+      MYSQL_PASSWORD: zabbix_password            # Zabbix password
+    volumes:
+      - mariadb-data:/var/lib/mysql
+    networks:
+      - zabbix-net
+    restart: unless-stopped
+
+  # Zabbix Server service
+  zabbix-server:
+    image: zabbix/zabbix-server-mysql:latest
+    container_name: zabbix-server-mariadb
+    environment:
+      DB_SERVER_HOST: mariadb-zabbix            # MariaDB host
+      MYSQL_USER: zabbix_user                   # Zabbix DB user
+      MYSQL_PASSWORD: zabbix_password           # Zabbix DB password
+      MYSQL_DBNAME: zabbix                      # Zabbix DB name
+    ports:
+      - "10051:10051"
+    depends_on:
+      - mariadb
+    networks:
+      - zabbix-net
+    restart: unless-stopped
+
+  # Zabbix Frontend service (optional)
+  zabbix-frontend:
+    image: zabbix/zabbix-web-nginx-mysql:latest
+    container_name: zabbix-frontend
+    environment:
+      ZBX_SERVER_HOST: zabbix-server-mariadb      # Zabbix server host
+      PHP_TZ: "UTC"
+    ports:
+      - "8080:8080"
+    depends_on:
+      - zabbix-server
+    networks:
+      - zabbix-net
+    restart: unless-stopped
+
+networks:
+  zabbix-net:
+    driver: bridge
+
+volumes:
+  mariadb-data:
+    driver: local
+  zabbix-data:
+    driver: local
